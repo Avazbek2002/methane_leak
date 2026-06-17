@@ -1,3 +1,4 @@
+
 # MethaneLeak
 
 An autonomous, end-to-end Geospatial MLOps pipeline and interactive web dashboard designed for real-time detection, vectorization, and visualization of industrial methane point-source plumes across infrastructure facilities.
@@ -24,26 +25,23 @@ flowchart TD
 
 ---
 
-## 🧠 Model Core, NAS Selection & Training Regime
+## 🧠 Model Core & Training Regime
 
-The inference core deployed on the serverless Modal GPU infrastructure relies on a custom-built, lightweight deep learning architecture optimized for multi-spectral atmospheric inputs.
+The inference core deployed on the serverless Modal GPU infrastructure relies on a lightweight deep learning architecture discovered and optimized via automated machine learning.
 
-### 1. Architecture: Multi-Modal Early-Fusion Spectrum Variant
+### 1. NAS Selection: Multi-Branch Convolutional Neural Network (CNN)
+
+During the Neural Architecture Search (NAS) execution loop, the search space evaluated a broad spectrum of state-of-the-art computer vision models—including heavy, parameter-dense backbones like MobileNetV2 and the transformer-based Convolutional Vision Transformer (CvT).
+
+The NAS engine **strongly favored a specialized multi-branch Convolutional Neural Network (CNN)** over larger models, choosing it as the absolute best backbone by a massive margin. While transformers and deep sequential networks frequently overfit on multi-modal satellite data grids with sparse labels, the custom multi-branch CNN layout excelled at isolating spatial plume contours while maintaining superior parameters efficiency.
+
+### 2. Early-Fusion Input Structure
 
 The model processes an incoming 4D tensor matrix of shape $(B, 11, 32, 32)$, fusing spatial remote sensing arrays with atmospheric physics channels directly in the stem layer:
 
 * **Channels 1–4 (Gas Diagnostics):** Raw column-averaged dry air mixing ratios of methane ($X\text{CH}_4$) from TROPOMI, alongside target-gas enhancement profiles and pixel QA filters.
 * **Channels 5–6 (Kinematic Constraints):** ERA5 $U$ and $V$ wind vectors to help the network differentiate linear, wind-drifted plume morphology from omnidirectional sensor noise.
 * **Channels 7–11 (Surface Proxies):** Surface pressure, geopotential heights, and SWIR albedo boundaries to reject high-reflectance false positives like water bodies or mineral flats.
-
-### 2. NAS Optimization: Custom RegNet-X Backbone
-
-To determine the absolute optimal backbone topology across a multi-objective Pareto frontier (balancing Macro F1-score with serverless millisecond latency constraints on an NVIDIA T4 GPU), a **Neural Architecture Search (NAS)** pipeline was executed over multiple block families.
-
-The NAS architecture search ultimately selected a **Custom RegNet-X variant integrated with Coordinate Attention (CA) modules** as the champion model. This layout outperformed standard ResNets and Vision Transformers on the $32 \times 32$ tiles by:
-
-1. Constructing a highly constrained parameter topology that minimizes compute overhead during headless serverless cold starts.
-2. Utilizing Coordinate Attention blocks to independently encode direction-aware spatial dependencies along the horizontal and vertical axes. This structural priority allows the model to map the highly directional, elongated geometric orientations characteristic of wind-driven point-source plumes without exploding feature weights.
 
 ### 3. Training Paradigm & Loss Optimization
 
@@ -88,23 +86,13 @@ $$FL(p_t) = -\alpha_t (1 - p_t)^\gamma \log(p_t)$$
 
 ---
 
-## 📚 References & Citations
+## 🤝 Acknowledgments & Citation
 
-If you utilize this pipeline architecture, model configurations, or early-fusion ingestion methodology in academic research or engineering design portfolios, please cite the foundational platform work:
+This pipeline incorporates and implements the core architectures, data processing frameworks, and remote sensing fusion methodologies pioneered by the **ADA Research Group** and climate scientists at SRON.
 
-```text
-@article{automergenet2025,
-  title={AutoMergeNet: Multi-Modal Remote Sensing Data Fusion and Neural Architecture Search for Automated Methane Plume Point-Source Detection},
-  author={Isroilov, A. and Atmospheric Remote Sensing Research Group},
-  journal={Journal of Geospatial MLOps and Environmental Monitoring},
-  volume={14},
-  number={3},
-  pages={245--261},
-  year={2025},
-  publisher={Geospatial Data Science Press}
-}
+If you use or build upon this codebase, please attribute credit to the original authors of the **AutoMergeNet** framework:
 
-```
+> J. Wąsala, J. D. Maasakkers, B. J. Schuit, G. Leguijt, I. Aben, R. Schneider, H. Hoos, and M. Baratchi, **"AutoMergeNet: AutoML-based M-Source Satellite Data Fusion Evaluated with Atmospheric Case Studies,"** *IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing*, 2025.
 
 ---
 
