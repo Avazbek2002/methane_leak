@@ -6,6 +6,7 @@ Built as an end-to-end system — from satellite data ingestion
 to a public interactive dashboard.
 
 **Live dashboard:** https://methane-leak.vercel.app
+<img width="1456" height="825" alt="image" src="https://github.com/user-attachments/assets/d54f7971-2fd5-470c-8f95-d2d92e572b27" />
 
 ---
 
