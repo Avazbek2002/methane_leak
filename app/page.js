@@ -10,6 +10,15 @@ export default function Home() {
   const [showFacilities, setShowFacilities] = useState(true);
   const [showFacilityHighlights, setShowFacilityHighlights] = useState(true);
 
+  // Helper to display facility name in the Anomaly Inspector
+  const getDisplayFacilityName = (name) => {
+    if (name === null || name === undefined) return 'Unregistered Facility';
+    const trimmed = String(name).trim();
+    if (trimmed === '') return 'Unregistered Facility';
+    if (trimmed === 'Unnamed Facility' || trimmed === 'unnamed facility') return 'Unregistered Facility';
+    return name;
+  };
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
       {/* Main Map View Container */}
@@ -147,7 +156,7 @@ export default function Home() {
                   Confirmed Anomaly
                 </span>
                 <h3 className="text-xl font-bold text-white mt-3 leading-snug">
-                  {!selectedPlume.fac_name || selectedPlume.fac_name === 'NaN' ? 'Unnamed Facility' : selectedPlume.fac_name}
+                  {getDisplayFacilityName(selectedPlume?.fac_name)}
                 </h3>
                 <div className="grid grid-cols-2 gap-4 mt-5">
                   <div className="flex flex-col gap-1">
