@@ -107,6 +107,8 @@ This is a known constraint of the data source, not the
 pipeline. The platform is designed for regional screening — 
 flagging facilities that warrant closer investigation.
 
+Several facilities in the OGIM registry are intentionally unnamed. These appear as 'Unregistered Facility' in the dashboard and represent undocumented or sensitive infrastructure — a finding in itself.
+
 ---
 
 ## Repository Structure
