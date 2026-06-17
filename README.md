@@ -8,15 +8,15 @@ An autonomous, end-to-end Geospatial MLOps pipeline and interactive web dashboar
 
 ```mermaid
 flowchart TD
-    A[Facilities Registry] -->│1. Ephemeral Read│ B(Orchestrator: live_cron_worker.py)
-    C[Google Earth Engine] -->│2. Free Harvest│ B
-    B -->│3. Injects -9999.0 Sentinels│ D[Mega-Batch Tensor: Shape N, 11, 32, 32]
-    D -->│4. Single Unified Handshake│ E[Modal Serverless T4 GPU App Cluster]
-    E -->│5. Restores TorchScript Graph \n Align Scales via .view -1,1,1│ F[Calibrated Fractional Probabilities]
-    F -->│6. Convex Hull Vectorizer│ B
-    B -->│7. Ephemeral Write Window│ G[(Neon PostGIS Database)]
-    G -->│8. Optimized Spatial API│ H[Next.js API Routes]
-    H -->│9. Live GeoJSON Feeds│ I[Frontend Next.js + Mapbox Map Dashboard]
+    A[Facilities Registry] -->|1. Ephemeral Read| B(Orchestrator: live_cron_worker.py)
+    C[Google Earth Engine] -->|2. Free Harvest| B
+    B -->|3. Injects -9999.0 Sentinels| D[Mega-Batch Tensor: Shape N, 11, 32, 32]
+    D -->|4. Single Unified Handshake| E[Modal Serverless T4 GPU App Cluster]
+    E -->|5. Restores TorchScript Graph <br> Align Scales via .view -1,1,1| F[Calibrated Fractional Probabilities]
+    F -->|6. Convex Hull Vectorizer| B
+    B -->|7. Ephemeral Write Window| G[(Neon PostGIS Database)]
+    G -->|8. Optimized Spatial API| H[Next.js API Routes]
+    H -->|9. Live GeoJSON Feeds| I[Frontend Next.js + Mapbox Map Dashboard]
 
 ```
 
