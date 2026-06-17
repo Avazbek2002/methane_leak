@@ -23,6 +23,13 @@ export default function Home() {
     return trimmed;
   };
 
+  // Derived display values for the selected plume's probability
+  const rawProb = selectedPlume?.probability;
+  const probNum = typeof rawProb === 'string' ? Number(rawProb) : rawProb;
+  const validProb = typeof probNum === 'number' && !Number.isNaN(probNum) && isFinite(probNum);
+  const selectedProbPercentText = validProb ? `${(probNum * 100).toFixed(1)}%` : 'N/A';
+  const selectedProbWidth = validProb ? `${Math.max(0, Math.min(100, probNum * 100))}%` : '0%';
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
       {/* Main Map View Container */}
