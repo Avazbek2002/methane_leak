@@ -95,6 +95,7 @@ export default function MethaneMap({ selectedPlume, onSelectPlume, yearFilter, p
       // Data-driven fill layer varying color/opacity by probability
       map.addLayer({
         id: 'plumes-layer-fill',
+        layout: { visibility: 'none' },
         type: 'fill',
         source: 'methane-plumes',
         paint: {
@@ -118,6 +119,7 @@ export default function MethaneMap({ selectedPlume, onSelectPlume, yearFilter, p
       // Outline layer (animated/pulsing line-width)
       map.addLayer({
         id: 'plumes-layer-outline',
+        layout: { visibility: 'none' },
         type: 'line',
         source: 'methane-plumes',
         paint: {
@@ -136,6 +138,7 @@ export default function MethaneMap({ selectedPlume, onSelectPlume, yearFilter, p
       // Bright highlight outline layer (cyan)
       map.addLayer({
         id: 'plumes-layer-highlight-outline',
+        layout: { visibility: 'none' },
         type: 'line',
         source: 'methane-plumes',
         paint: {
@@ -148,6 +151,7 @@ export default function MethaneMap({ selectedPlume, onSelectPlume, yearFilter, p
       // Highlight fill layer (cyan with opacity)
       map.addLayer({
         id: 'plumes-layer-highlight-fill',
+        layout: { visibility: 'none' },
         type: 'fill',
         source: 'methane-plumes',
         paint: {
