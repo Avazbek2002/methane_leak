@@ -1,7 +1,31 @@
-
 # MethaneLeak
 
-An autonomous, end-to-end Geospatial MLOps pipeline and interactive web dashboard designed for real-time detection, vectorization, and visualization of industrial methane point-source plumes across infrastructure facilities.
+A live geospatial MLOps pipeline for detecting and visualizing 
+methane emission anomalies over Uzbekistan's gas infrastructure.
+Built as an end-to-end system — from satellite data ingestion 
+to a public interactive dashboard.
+
+**Live dashboard:** https://methane-leak.vercel.app
+
+---
+
+## What It Does
+
+Uzbekistan sits on significant natural gas reserves. Methane 
+leaks from pipelines, compressor stations, and processing 
+facilities are both an environmental problem and an economic 
+loss — but most go undetected because continuous monitoring 
+is expensive.
+
+This platform uses free satellite data (Sentinel-5P TROPOMI) 
+and open infrastructure registries (OGIM) to run daily 
+automated anomaly detection across 82 gas facilities. 
+Confirmed anomalies are stored as geospatial polygons in a 
+PostGIS database and rendered on a live Mapbox dashboard.
+
+---
+
+## System Architecture
 
 ```mermaid
 flowchart TD
@@ -9,93 +33,130 @@ flowchart TD
     C[Google Earth Engine] -->|2. Free Harvest| B
     B -->|3. Injects -9999.0 Sentinels| D[Mega-Batch Tensor: Shape N, 11, 32, 32]
     D -->|4. Single Unified Handshake| E[Modal Serverless T4 GPU App Cluster]
-    E -->|5. Restores TorchScript Graph <br> Align Scales via .view -1,1,1| F[Calibrated Fractional Probabilities]
+    E -->|5. Restores TorchScript Graph| F[Calibrated Fractional Probabilities]
     F -->|6. Convex Hull Vectorizer| B
     B -->|7. Ephemeral Write Window| G[(Neon PostGIS Database)]
-    G -->|8. Optimized Spatial API| H[Next.js API Routes]
-    H -->|9. Live GeoJSON Feeds| I[Frontend Next.js + Mapbox Map Dashboard]
-
+    G -->|8. Spatial API| H[Next.js API Routes]
+    H -->|9. Live GeoJSON Feeds| I[Next.js + Mapbox Dashboard]
 ```
-
-## 🚀 Key Architectural Optimizations
-
-* **Cost-Minimized Mega-Batching:** Rather than initiating expensive sequential network handshakes for every data point, the orchestrator aggregates data across all facility targets and dates locally for free. It triggers the serverless cloud GPU **exactly once** per orchestration window, evaluating inputs simultaneously in parallel VRAM for fractions of a penny.
-* **Data Publication Lag Resilience:** Protects execution tracks from telemetry walls and empty band states (such as delayed ERA5 hourly wind grids) by using JSON-compliant numeric sentinels (`-9999.0`), which map smoothly back to true float `NaN` variables immediately upon reaching GPU memory.
-* **Connection-Insulated Persistence:** Eliminates serverless socket dropping or idle connection timeouts by decoupling compute cycles from database lifecycles. It utilizes separate, short-lived ephemeral connection pools to Neon PostGIS strictly for initial configuration loading and final rapid-fire alerts logging.
 
 ---
 
-## 🧠 Model Core & Training Regime
+## How It Works
 
-The inference core deployed on the serverless Modal GPU infrastructure relies on a lightweight deep learning architecture discovered and optimized via automated machine learning.
+### Data Pipeline
 
-### 1. NAS Selection: Multi-Branch Convolutional Neural Network (CNN)
+Every day at 02:00 UTC, a GitHub Actions workflow triggers 
+the main orchestrator. It pulls the latest Sentinel-5P TROPOMI 
+methane readings and ERA5 wind vectors for all 82 facilities 
+via Google Earth Engine — completely free.
 
-During the Neural Architecture Search (NAS) execution loop, the search space evaluated a broad spectrum of state-of-the-art computer vision models—including heavy, parameter-dense backbones like MobileNetV2 and the transformer-based Convolutional Vision Transformer (CvT).
+Rather than making separate API calls per facility per date, 
+the orchestrator stacks everything into a single batch tensor 
+of shape (N, 11, 32, 32) and sends it to the GPU in one 
+request. This keeps cloud compute costs near zero.
 
-The NAS engine **strongly favored a specialized multi-branch Convolutional Neural Network (CNN)** over larger models, choosing it as the absolute best backbone by a massive margin. While transformers and deep sequential networks frequently overfit on multi-modal satellite data grids with sparse labels, the custom multi-branch CNN layout excelled at isolating spatial plume contours while maintaining superior parameters efficiency.
+Missing data (delayed ERA5 grids, cloud-contaminated TROPOMI 
+pixels) is handled by injecting -9999.0 sentinel values that 
+map cleanly to NaN inside the model.
 
-### 2. Early-Fusion Input Structure
+### ML Model
 
-The model processes an incoming 4D tensor matrix of shape $(B, 11, 32, 32)$, fusing spatial remote sensing arrays with atmospheric physics channels directly in the stem layer:
+The inference model implements the AutoMergeNet architecture 
+from Wąsala et al. (2025) — an AutoML-discovered multi-branch 
+CNN that outperformed transformer-based alternatives on sparse 
+multi-modal satellite grids.
 
-* **Channels 1–4 (Gas Diagnostics):** Raw column-averaged dry air mixing ratios of methane ($X\text{CH}_4$) from TROPOMI, alongside target-gas enhancement profiles and pixel QA filters.
-* **Channels 5–6 (Kinematic Constraints):** ERA5 $U$ and $V$ wind vectors to help the network differentiate linear, wind-drifted plume morphology from omnidirectional sensor noise.
-* **Channels 7–11 (Surface Proxies):** Surface pressure, geopotential heights, and SWIR albedo boundaries to reject high-reflectance false positives like water bodies or mineral flats.
+Each facility gets a (11, 32, 32) input patch fusing:
 
-### 3. Training Paradigm & Loss Optimization
+- **Channels 1–4:** TROPOMI methane mixing ratios, 
+  enhancement profiles, and QA flags
+- **Channels 5–6:** ERA5 U/V wind vectors — helps 
+  distinguish wind-drifted plumes from sensor noise
+- **Channels 7–11:** Surface pressure, geopotential 
+  height, SWIR albedo — filters false positives over 
+  water and mineral flats
 
-* **Weakly Supervised Classification:** Trained to execute binary patch classification (Plume vs. Clean Background). Target masks were constructed by mapping sparse, high-resolution point-source events (from hyperspectral PRISMA and aircraft flyovers) down to coarse TROPOMI grid coordinates.
-* **Class Imbalance Mitigation:** Because true methane plumes are highly sparse anomalies in vast background grids, standard cross-entropy easily causes weight saturation. The network was trained using **Focal Loss** to automatically down-weight the loss contributions of easy-to-classify "clean sky" patches and force gradient descent to prioritize ambiguous plume perimeters:
+The model outputs a plume probability per patch. Facilities 
+exceeding the threshold trigger the convex hull vectorizer, 
+which traces a polygon around the anomalous pixels and writes 
+it to PostGIS.
+
+**Training:** Binary classification (Plume vs. Clean) using 
+Focal Loss to handle severe class imbalance — genuine plumes 
+are rare against a vast clean background:
 
 $$FL(p_t) = -\alpha_t (1 - p_t)^\gamma \log(p_t)$$
 
+Input channels are Z-score normalized using per-channel 
+statistics embedded directly into the TorchScript graph, 
+so raw satellite units (ppb, hPa) are aligned in VRAM 
+without preprocessing overhead.
 
-* **Online Alignment:** Localized Z-score normalization arrays (`train_mean.pt` and `train_std.pt`) are embedded directly into the TorchScript forward pass execution graph, transforming mismatched raw units (ppb mixing ratios vs. hPa pressures) into standard normal distributions on the fly inside VRAM.
+### Known Limitations
+
+TROPOMI has a native resolution of ~5.5km per pixel. 
+Individual plume shapes are not resolved at this scale — 
+detections represent facility-level anomalies rather than 
+precise plume geometry. For high-resolution plume 
+characterization, EMIT or GHGSat data would be needed 
+as a follow-up step.
+
+This is a known constraint of the data source, not the 
+pipeline. The platform is designed for regional screening — 
+flagging facilities that warrant closer investigation.
 
 ---
 
-## 📂 Repository Architecture
+## Repository Structure
 
 ```text
 ├── app/
 │   ├── api/
-│   │   ├── facilities/route.ts      # Serves infrastructure targets as a GeoJSON FeatureCollection
-│   │   └── methane-data/route.js    # Serves verified plume alerts as a GeoJSON FeatureCollection
-│   ├── layout.js                    # Global layout configuration and Mapbox CSS ingestion
-│   └── page.js                      # Core analytical layout, map shell, and filter controls sidebar
+│   │   ├── facilities/route.ts     # GeoJSON FeatureCollection of infrastructure targets
+│   │   └── methane-data/route.js  # GeoJSON FeatureCollection of confirmed plume alerts
+│   ├── layout.js                   # Global layout and Mapbox CSS
+│   └── page.js                     # Dashboard layout, map, and filter controls
 ├── components/
-│   ├── MethaneMap.js                # Core Mapbox GL wrapper with optimized vector data layers
-│   └── FacilityMap.tsx              # React-Leaflet marker component for asset indexing
-├── data/                            # Static asset coordinate files and GeoPackage boundaries
+│   ├── MethaneMap.js               # Mapbox GL wrapper with vector layers
+│   └── FacilityMap.tsx             # React-Leaflet facility marker component
+├── data/                           # Static facility coordinates and boundary files
 ├── .github/workflows/
-│   └── daily_inference.yml          # GitHub Actions scheduled headless workflow (Runs 02:00 UTC)
-├── live_cron_worker.py              # Main orchestrator (GEE extraction, stacking, write manager)
-└── modal_inference.py               # Serverless PyTorch JIT model worker on Modal GPU infrastructure
-
+│   └── daily_inference.yml         # Scheduled GitHub Actions workflow (02:00 UTC)
+├── live_cron_worker.py             # Main orchestrator
+└── modal_inference.py              # Serverless PyTorch inference on Modal T4 GPU
 ```
 
 ---
 
-## 💡 Operational Mechanics & Production Behaviors
+## Dashboard Features
 
-* **Observation Filter Rule:** To maximize render speeds, the live map interface hides plumes by default upon initial page load. You must select an explicit **Observation Year** in the dashboard control sidebar to paint vector plumes across the active layer stack.
-* **Plume Shape Tracing:** Confirmed model alerts trigger a local spatial Convex Hull vectorizer. This wraps a geometric polygon boundary tightly around the anomalous mixing ratio pixels, storing coordinates cleanly inside the PostGIS layer.
-* **Clipboard Integration:** Clicking any asset target on the interactive map copies the precise coordinates `(Latitude, Longitude)` directly into your system clipboard while presenting a client-side toast confirmation window.
-* **Global Style Integrity:** To guarantee vector features draw correctly, Mapbox styles are loaded globally inside `app/layout.js`. Modifying or isolating component CSS scopes may disrupt map layer scaling.
-
----
-
-## 🤝 Acknowledgments & Citation
-
-This pipeline incorporates and implements the core architectures, data processing frameworks, and remote sensing fusion methodologies pioneered by the **ADA Research Group** and climate scientists at SRON.
-
-If you use or build upon this codebase, please attribute credit to the original authors of the **AutoMergeNet** framework:
-
-> J. Wąsala, J. D. Maasakkers, B. J. Schuit, G. Leguijt, I. Aben, R. Schneider, H. Hoos, and M. Baratchi, **"AutoMergeNet: AutoML-based M-Source Satellite Data Fusion Evaluated with Atmospheric Case Studies,"** *IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing*, 2025.
+- Select observation year to render plume detections 
+  as animated vector polygons
+- Adjust minimum probability threshold (default 50%)
+- Toggle facility markers on/off
+- Click any facility to copy coordinates to clipboard
+- Click any plume polygon to inspect facility metrics
 
 ---
 
-## 📄 License
+## Acknowledgements
 
-This platform is open-source software licensed under the [MIT License](https://www.google.com/search?q=LICENSE).
+This platform implements the AutoMergeNet architecture from:
+
+> J. Wąsala, J. D. Maasakkers, B. J. Schuit, G. Leguijt, 
+> I. Aben, R. Schneider, H. Hoos, and M. Baratchi, 
+> "AutoMergeNet: AutoML-based M-Source Satellite Data Fusion 
+> Evaluated with Atmospheric Case Studies," 
+> *IEEE Journal of Selected Topics in Applied Earth 
+> Observations and Remote Sensing*, 2025.
+> DOI: 10.1109/JSTARS.2025.3621068
+
+Infrastructure data from the Oil and Gas Infrastructure 
+Mapping (OGIM) database, Environmental Defense Fund.
+
+---
+
+## License
+
+MIT License
