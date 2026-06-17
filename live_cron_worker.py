@@ -36,23 +36,35 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 
 def init_earthengine_from_env():
-    token_b64 = os.environ.get("EARTHENGINE_TOKEN")
-    if token_b64:
-        key_json = base64.b64decode(token_b64)
-        fd, path = tempfile.mkstemp(suffix="-ee-key.json")
-        os.close(fd)
-        with open(path, "wb") as f:
-            f.write(key_json)
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = path
-        logger.info("Wrote Earth Engine service account key to temporary file")
+    """
+    Decodes the service account token directly in memory, harvests the project_id,
+    and initializes Earth Engine with explicit credentials to prevent ambient fallback crashes.
+    """
+    import json
+    import google.oauth2.service_account
 
-    ee_project = os.environ.get("EARTHENGINE_PROJECT")
-    if ee_project:
-        logger.info(f"Initializing Earth Engine with explicit routing project: {ee_project}")
-        ee.Initialize(project=ee_project)
-    else:
-        logger.info("Initializing Earth Engine with ambient user defaults...")
-        ee.Initialize()
+    token_b64 = os.environ.get("EARTHENGINE_TOKEN")
+    if not token_b64:
+        raise RuntimeError("❌ EARTHENGINE_TOKEN environment variable is missing or empty in GitHub Secrets.")
+
+    try:
+        # Decode the base64 string directly back into a raw string, then into a dictionary
+        key_dict = json.loads(base64.b64decode(token_b64).decode("utf-8"))
+        
+        # Automatically extract the project ID directly out of your service account key file
+        project_id = key_dict.get("project_id")
+        logger.info(f"🔑 Successfully parsed service account key for project: {project_id}")
+        
+        # Build an explicit Google OAuth2 credentials object
+        credentials = google.oauth2.service_account.Credentials.from_service_account_info(key_dict)
+        
+        # Force Earth Engine to initialize using this exact token and project configuration
+        logger.info("🚀 Triggering explicit Earth Engine cloud authorization...")
+        ee.Initialize(credentials=credentials, project=project_id)
+        logger.info("✨ Earth Engine successfully authenticated headlessly!")
+        
+    except Exception as e:
+        raise RuntimeError(f"❌ Failed headless Earth Engine initialization: {str(e)}")
 
 
 def get_db_connection() -> psycopg2.extensions.connection:
