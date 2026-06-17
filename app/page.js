@@ -13,10 +13,14 @@ export default function Home() {
   // Helper to display facility name in the Anomaly Inspector
   const getDisplayFacilityName = (name) => {
     if (name === null || name === undefined) return 'Unregistered Facility';
+    // treat numeric NaN as missing
+    if (typeof name === 'number' && Number.isNaN(name)) return 'Unregistered Facility';
     const trimmed = String(name).trim();
     if (trimmed === '') return 'Unregistered Facility';
-    if (trimmed === 'Unnamed Facility' || trimmed === 'unnamed facility') return 'Unregistered Facility';
-    return name;
+    const lower = trimmed.toLowerCase();
+    if (lower === 'unnamed facility' || lower === 'unnamed facility') return 'Unregistered Facility';
+    if (lower === 'nan') return 'Unregistered Facility';
+    return trimmed;
   };
 
   return (
@@ -179,7 +183,7 @@ export default function Home() {
                 <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500">Model Confidence</span>
                 <div className="flex items-baseline gap-2 mt-2">
                   <span className="text-4xl font-extrabold text-white tracking-tight">
-                    {(selectedPlume.probability * 100).toFixed(1)}%
+                    {selectedProbPercentText}
                   </span>
                   <span className="text-xs text-slate-400">Probability</span>
                 </div>
@@ -187,7 +191,7 @@ export default function Home() {
                 <div className="w-full bg-slate-800 h-2.5 rounded-full mt-3 overflow-hidden">
                   <div 
                     className="bg-gradient-to-r from-orange-550 to-red-500 h-full rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${selectedPlume.probability * 100}%` }}
+                    style={{ width: selectedProbWidth }}
                   />
                 </div>
               </div>
