@@ -38,7 +38,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 def init_earthengine_from_env():
     """
     Decodes the service account token directly in memory, harvests the project_id,
-    and initializes Earth Engine with explicit credentials to prevent ambient fallback crashes.
+    and initializes Earth Engine with explicit OAuth2 scopes to satisfy headless CI checks.
     """
     import json
     import google.oauth2.service_account
@@ -48,24 +48,28 @@ def init_earthengine_from_env():
         raise RuntimeError("❌ EARTHENGINE_TOKEN environment variable is missing or empty in GitHub Secrets.")
 
     try:
-        # Decode the base64 string directly back into a raw string, then into a dictionary
+        # Decode base64 bytes straight back into a clean string dictionary
         key_dict = json.loads(base64.b64decode(token_b64).decode("utf-8"))
         
-        # Automatically extract the project ID directly out of your service account key file
+        # Automatically extract the project ID out of your service account payload
         project_id = key_dict.get("project_id")
         logger.info(f"🔑 Successfully parsed service account key for project: {project_id}")
         
-        # Build an explicit Google OAuth2 credentials object
-        credentials = google.oauth2.service_account.Credentials.from_service_account_info(key_dict)
+        # FIX: Explicitly request the dedicated Earth Engine API permission scope
+        ee_scopes = ['https://www.googleapis.com/auth/earthengine']
+        credentials = google.oauth2.service_account.Credentials.from_service_account_info(
+            key_dict, 
+            scopes=ee_scopes
+        )
         
-        # Force Earth Engine to initialize using this exact token and project configuration
+        # Force Earth Engine to initialize using this fully scoped credential map
         logger.info("🚀 Triggering explicit Earth Engine cloud authorization...")
         ee.Initialize(credentials=credentials, project=project_id)
         logger.info("✨ Earth Engine successfully authenticated headlessly!")
         
     except Exception as e:
         raise RuntimeError(f"❌ Failed headless Earth Engine initialization: {str(e)}")
-
+    
 
 def get_db_connection() -> psycopg2.extensions.connection:
     db_url = os.environ.get("DATABASE_URL")
