@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0f172a; /* Slate 900 background by default */
+  --foreground: #f8fafc;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* ── Timeline Range Slider ── */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #14b8a6;   /* teal-500 */
+  border: 2px solid #0f172a;
+  box-shadow: 0 0 0 3px rgba(20,184,166,0.3);
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+input[type='range']::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 5px rgba(20,184,166,0.4);
+}
+input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #14b8a6;
+  border: 2px solid #0f172a;
+  cursor: pointer;
+}
+
+/* ── Year Filter Select ── */
+select {
+  background-color: #1e293b;  /* slate-800 */
+  color: #e2e8f0;             /* slate-200 */
+}
+select option {
+  background-color: #1e293b;
+  color: #e2e8f0;
+}
+
+/* ── Custom Scrollbar for Sidebar ── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}

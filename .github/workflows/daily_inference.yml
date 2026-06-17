@@ -1,0 +1,39 @@
+name: Daily Inference Pipeline
+
+on:
+  schedule:
+    # Execute automatically every night at 02:00 UTC (07:00 AM Tashkent time)
+    - cron: "0 2 * * *"
+  workflow_dispatch: {} # Allows manual force-triggering from the GitHub UI panel
+
+jobs:
+  nightly-inference:
+    runs-on: ubuntu-latest
+
+    # Defining environment variables globally at the job level ensures
+    # they are perfectly accessible to every underlying execution step.
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+      EARTHENGINE_TOKEN: ${{ secrets.EARTHENGINE_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: "pip" # Automated caching built natively into the setup step
+
+      - name: Install pipeline dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install earthengine-api modal numpy pandas psycopg2-binary matplotlib pillow shapely
+
+      - name: Run live cron worker
+        run: |
+          # The script reads EARTHENGINE_TOKEN, decodes it, and triggers Modal headlessly
+          python live_cron_worker.py
