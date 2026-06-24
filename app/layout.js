@@ -2,6 +2,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import 'mapbox-gl/dist/mapbox-gl.css';
 import 'leaflet/dist/leaflet.css';
+import { Analytics } from '@vercel/analytics/next';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -19,7 +20,10 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
